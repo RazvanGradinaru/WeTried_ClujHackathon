@@ -7,17 +7,18 @@ from concurrent.futures import ThreadPoolExecutor
 import tiktoken
 from flask import Flask, request, redirect, url_for, render_template, flash
 from werkzeug.utils import secure_filename
+import requests
 
 UPLOAD_FOLDER = 'temp_pdfs'
 ALLOWED_EXTENSIONS = {'pdf'}
-
-openai.api_key = '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'
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+app.secret_key = '.qJYWLR#30a"lGqWtw4SAVooy@50Q'
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -47,44 +48,38 @@ def remove_text_after_references(text):
             return cleaned_text
     return text
 
-#def generate_summary(text, final_summary_length, topic_knowledge):
-    #final_summary_length = "100-150"
-    #topic_knowledge = "begineer level"
-#    prompt = f"Summarize the following text in {final_summary_length} words for {topic_knowledge}:\n{text}"
- #   response = openai.Completion.create(
-#        engine='davinci',
-#        prompt=prompt,
-#        max_tokens=final_summary_length,
-#        temperature=0.6,
-#        n=1,
-#        stop=None
-#    )
-#    summary = response.choices[0].text.strip()
-#    return summary
-
-
-
 def call_openai_api(chunk):
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "Summarize the following text in 200 words for beginner level with no prior understanding of the field. Try to use very easy terms or at least explain them."},
+            {"role": "system", "content": "You are an assistant trying to explain a paper (research) to a 12 year old, using easy vocabulary."},
+            {"role": "user", "content": f"Summarize the following text in {choice_wordlength_final} words for {choice_topicknowledge} level."},
             {"role": "user", "content": f"YOUR DATA TO PASS IN: {chunk}."},
         ],
-        max_tokens=500,
+        max_tokens=100,
         n=1,
         stop=None,
         temperature=0.5
     )
-    return response.choices[0]['message']['content'].strip()
+    return response.choices[0]['message']['content']
 
 
 def split_into_chunks(text, tokens=500):
+    global choice_wordlength_final
     encoding = tiktoken.encoding_for_model('gpt-3.5-turbo')
     words = encoding.encode(text)
     chunks = []
     for i in range(0, len(words), tokens):
         chunks.append(' '.join(encoding.decode(words[i:i + tokens])))
+
+    if choice_wordlength == "100-150 words":
+        choice_wordlength_final = 150
+    elif choice_wordlength == "200-250 words":
+        choice_wordlength_final = 250
+    elif choice_wordlength == "350-400 words":
+        choice_wordlength_final = 400
+    else:
+        choice_wordlength_final = 250
     return chunks   
 
 def process_chunks(input_text):
@@ -93,12 +88,16 @@ def process_chunks(input_text):
     # Processes chunks in parallel
     with ThreadPoolExecutor() as executor:
         responses = list(executor.map(call_openai_api, chunks))
-
     return responses
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
+        choice_wordlength = request.form.get("choice_wordlength")
+        choice_topicknowledge = request.form.get("choice_topicknowledge")
+        print("Choice topic knowledge: %s." % choice_topicknowledge)
+        print("Choice word length: %s." % choice_wordlength)
+        # Process the choice_wordlength and choice_topicknowledge here
         # Check if the post request has the file part
         if 'file' not in request.files:
             flash('No file part')
@@ -132,14 +131,60 @@ def upload_file():
 
             # Perform further processing or return a response to the user
             #return redirect(url_for('uploaded_file', filename=filename))
-            return render_template('result.html', text=cleaned_text, summary = finalfinalfinalAnswer)
+            return render_template('index.html', summary = finalfinalfinalAnswer)
     # Render the file upload form template for GET requests
-    return render_template('upload.html')
+    return render_template('index.html')
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     # Return a response to the user, e.g., display the uploaded file or provide a download link
     return f'Temporary file {filename} has been uploaded successfully!'
+
+def fetch_paper_summary(topic):
+    # Parameters for arXiv API search
+    params = {
+        'search_query': f'all:{topic}',
+        'max_results': 1,
+        'sortBy': 'relevance',
+        'sortOrder': 'descending',
+        'start': 0
+    }
+
+    # Send request to arXiv API
+    response_arxiv = requests.get(ARXIV_API_URL, params=params)
+
+    if response_arxiv.status_code == 200:
+        # Extract the paper summary from the API response
+        xml_data = response_arxiv.text
+        summary_start = xml_data.find("<summary>") + len("<summary>")
+        summary_end = xml_data.find("</summary>", summary_start)
+        summary_arxiv = xml_data[summary_start:summary_end].strip()
+
+        return summary_arxiv
+
+    return None
+
+@app.route('/arxiv', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        topic = request.form['topic']
+
+        # Fetch paper summary using the arXiv API
+        summary = fetch_paper_summary(topic)
+
+        if summary:
+            return f'Summary of the paper on "{topic}":<br>{summary}'
+        else:
+            return 'No paper found for the given topic.'
+
+    return '''
+        <form method="POST">
+            <label for="topic">Enter a topic:</label><br>
+            <input type="text" id="topic" name="topic" required><br><br>
+            <input type="submit" value="Submit">
+        </form>
+    '''
+
 
 if __name__ == '__main__':
     app.run(debug=True)

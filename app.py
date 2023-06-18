@@ -12,6 +12,7 @@ import requests
 UPLOAD_FOLDER = 'temp_pdfs'
 ALLOWED_EXTENSIONS = {'pdf'}
 
+
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -49,6 +50,7 @@ def remove_text_after_references(text):
     return text
 
 def call_openai_api(chunk):
+    print(len(chunk))
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -140,51 +142,113 @@ def uploaded_file(filename):
     # Return a response to the user, e.g., display the uploaded file or provide a download link
     return f'Temporary file {filename} has been uploaded successfully!'
 
-def fetch_paper_summary(topic):
-    # Parameters for arXiv API search
+#@app.route('/arxivinput', methods=['GET', 'POST'])
+def analyze_user_input(user_text):
+    global search_query
+    # Make a request to OpenAI's Chat API to analyze the user's input
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an Arxiv topic recommender system based on interests of the user."},
+            {"role": "user", "content": f"Based on the user input about themselves, find what are their interests, what topics they would like to read about on Arxiv and only list the field, and topics they would like to know more about. In your output message only inlcude a list like: quantum field theory, general relativity, black holes."},
+            {"role": "user", "content": f"YOUR DATA TO PASS IN: {user_text}."},
+        ],
+        max_tokens=100,
+        n=1,
+        stop=None,
+        temperature=0.5
+    )
+    
+    # Extract the generated search query from the OpenAI response
+    search_query = response.choices[0]['message']['content']
+    print(search_query)
+
+    return search_query
+
+def recommend(search_query):
+    # Fetch relevant papers from the arXiv API
+    arxiv_url = 'http://export.arxiv.org/api/query'
     params = {
-        'search_query': f'all:{topic}',
-        'max_results': 1,
-        'sortBy': 'relevance',
-        'sortOrder': 'descending',
-        'start': 0
+        'search_query': search_query,
+        'max_results': 10
     }
+    response2 = requests.get(arxiv_url, params=params)
 
-    # Send request to arXiv API
-    response_arxiv = requests.get(ARXIV_API_URL, params=params)
+    if response2.status_code == 200:
+        # Parse the API response and extract relevant paper information
+        papers = parse_arxiv_response(response2.text)
+        return render_template('arxivinput.html', papers=papers)
+    else:
+        return 'Error occurred while fetching papers from the arXiv API.'
 
-    if response_arxiv.status_code == 200:
-        # Extract the paper summary from the API response
-        xml_data = response_arxiv.text
-        summary_start = xml_data.find("<summary>") + len("<summary>")
-        summary_end = xml_data.find("</summary>", summary_start)
-        summary_arxiv = xml_data[summary_start:summary_end].strip()
+def parse_arxiv_response(response_text):
+    # Find the start and end tags for each paper entry
+    entry_start = '<entry>'
+    entry_end = '</entry>'
 
-        return summary_arxiv
+    # Find the start and end tags for the title, authors, and abstract
+    title_start = '<title>'
+    title_end = '</title>'
+    authors_start = '<author>'
+    authors_end = '</author>'
+    abstract_start = '<summary>'
+    abstract_end = '</summary>'
 
-    return None
+    # Initialize the list to store paper information
+    papers = []
 
-@app.route('/arxiv', methods=['GET', 'POST'])
+    # Loop through the response text and extract paper information
+    while True:
+        # Find the start and end indices of the next paper entry
+        start_index = response_text.find(entry_start)
+        end_index = response_text.find(entry_end)
+
+        # Break the loop if no more paper entries are found
+        if start_index == -1 or end_index == -1:
+            break
+
+        # Extract the paper entry
+        paper_entry = response_text[start_index:end_index + len(entry_end)]
+
+        # Extract the title
+        title_start_index = paper_entry.find(title_start)
+        title_end_index = paper_entry.find(title_end)
+        title = paper_entry[title_start_index + len(title_start):title_end_index]
+
+        # Extract the authors
+        authors_start_index = paper_entry.find(authors_start)
+        authors_end_index = paper_entry.find(authors_end)
+        authors = paper_entry[authors_start_index + len(authors_start):authors_end_index]
+
+        # Extract the abstract
+        abstract_start_index = paper_entry.find(abstract_start)
+        abstract_end_index = paper_entry.find(abstract_end)
+        abstract = paper_entry[abstract_start_index + len(abstract_start):abstract_end_index]
+
+        # Create a dictionary with the paper information
+        paper = {
+            'title': title,
+            'authors': authors,
+            'abstract': abstract
+        }
+
+        # Append the paper dictionary to the list
+        papers.append(paper)
+
+        # Update the response text by removing the processed paper entry
+        response_text = response_text[end_index + len(entry_end):]
+
+    return papers
+
+@app.route('/arxivinput', methods=['GET', 'POST'])
 def index():
+    k = ""
     if request.method == 'POST':
-        topic = request.form['topic']
-
-        # Fetch paper summary using the arXiv API
-        summary = fetch_paper_summary(topic)
-
-        if summary:
-            return f'Summary of the paper on "{topic}":<br>{summary}'
-        else:
-            return 'No paper found for the given topic.'
-
-    return '''
-        <form method="POST">
-            <label for="topic">Enter a topic:</label><br>
-            <input type="text" id="topic" name="topic" required><br><br>
-            <input type="submit" value="Submit">
-        </form>
-    '''
-
+        user_text = request.form.get('user_text')
+        analyze_user_input(user_text)
+        k = recommend(search_query)
+        return k
+    return render_template('arxivinput.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

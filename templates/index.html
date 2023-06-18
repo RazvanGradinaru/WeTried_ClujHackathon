@@ -4,6 +4,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="../static/css/dist/output.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      $(document).ready(function() {
+        $("#wordlength-dropdown, #difficulty-dropdown").change(function() {
+          var choice_wordlength = "200-250";
+          var choice_topicknowledge = "Intermediate";
+          var choice_wordlength = $("#wordlength-dropdown").val();
+          var choice_topicknowledge = $("#difficulty-dropdown").val();
+          $.ajax({
+            type: "POST",
+            url: "/",
+            data: {
+              "choice_wordlength": choice_wordlength,
+              "choice_topicknowledge": choice_topicknowledge
+            },
+            success: function(response) {
+              console.log("Dropdown choices sent to the server successfully.");
+            },
+            error: function(error) {
+              console.log("Error:", error);
+              // Handle the error if necessary
+            }
+          });
+        });
+      });
+    </script>
 </head>
 <body>
 
@@ -90,26 +116,31 @@
 
               <div>
                 <label for="Topic knowledge" class="block text-sm font-medium leading-6 text-white">Topic knowledge</label>
-                <select id="Topic knowledge" name="Topic knowledge" class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
-                  <option>Beginner</option>
-                  <option selected>Intermediate</option>
-                  <option>Advanced</option>
-                </select>
+                    <select id="difficulty-dropdown" name="Topic knowledge" class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                      <option>Beginner</option>
+                      <option selected>Intermediate</option>
+                      <option>Advanced</option>
+                    </select>
               </div>  
-
               <div>
                 <label for="Summary length" class="block text-sm font-medium leading-6 text-white">Summary length</label>
-                <select id="Summary length" name="Summary length" class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                <select id="wordlength-dropdown" name="Summary length" class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
                   <option>100-150 words</option>
                   <option selected>200-250 words</option>
                   <option>350-400 words</option>
                 </select>
               </div>  
 
-              <div class="GenerateButton flex justify-center mt-1">
-                <button type="button" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Summarise!</button>
-              </div>
-              
+              <!--<form method="POST" enctype="multipart/form-data"> -->
+                <!-- <div class="GenerateButton flex justify-center mt-1"> -->
+                  <!-- <button type="submit" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Summarise!</button> -->
+                  <!-- <input type="submit" value="Summarise!" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style"> -->
+                <!-- </div> -->
+              <!--</form> -->
+              <form method="POST" enctype="multipart/form-data">
+                <!-- <input type="submit" value="Upload"> -->
+                <input type="submit" value="Summarise!" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style">
+              </form>
             </nav>
           </div>
           <!-- SearchWasHere-->
@@ -210,7 +241,11 @@
               <div class="overflow-hidden rounded-lg bg-white shadow">
                 <div class="p-6">
                   <!-- Content for the left column -->
-                  <br> 1<br> 2<br> 3<br> 4<br> 5<br> 6<br>7 <br>8 <br> 9<br> 10<br> 11<br>
+                  <form method="POST" enctype="multipart/form-data">
+                    <input type="file" name="file" accept=".pdf">
+                    <!-- <input type="submit" value="Upload"> -->
+                    <input type="submit" value="Summarise!" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style">
+                  </form>
                 </div>
               </div>
             </section>
@@ -223,6 +258,7 @@
               <div class="overflow-hidden rounded-lg bg-white shadow">
                 <div class="p-6">
                   <!-- Content for the right column -->
+                  <p>{{ summary }}</p>
                 </div>
               </div>
             </section>

@@ -137,10 +137,31 @@
                   <!-- <input type="submit" value="Summarise!" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style"> -->
                 <!-- </div> -->
               <!--</form> -->
-              <form method="POST" enctype="multipart/form-data">
-                <!-- <input type="submit" value="Upload"> -->
-                <input type="submit" value="Summarise!" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style">
-              </form>
+              
+              <button onclick="redirectToArxiv()" class="your-button-styles">Go to Arxiv</button>
+              
+              <style>
+                .your-button-styles {
+                  background-color:  rgb(124 58 237);;
+                  border: none;
+                  color: white;
+                  padding: 10px 20px;
+                  text-align: center;
+                  text-decoration: none;
+                  display: inline-block;
+                  font-size: 16px;
+                  font-weight: bold;
+                  border-radius: 4px;
+                  cursor: pointer;
+                }
+              </style>
+
+              <script>
+                function redirectToArxiv() {
+                  window.location.href = "/arxiv";
+                }
+              </script>
+
             </nav>
           </div>
           <!-- SearchWasHere-->
@@ -223,9 +244,6 @@
     </div>
   </header>
 </div>
-
-  
-
 <div class="min-h-full">
   <header class="bg-violet-600 pb-24">
     <main class="-mt-300 pb-8"> 
@@ -240,12 +258,13 @@
               <h2 class="sr-only" id="section-1-title">Section title</h2>
               <div class="overflow-hidden rounded-lg bg-white shadow">
                 <div class="p-6">
+                  
                   <!-- Content for the left column -->
-                  <form method="POST">
-                    <label for="user_text">Say what would you like to read about in a research paper, you can include as much information as you can about yourself, your interests.</label><br>
-                    <input type="text" id="user_text" name="user_text" required><br><br>
-                    <input type="submit" value="Submit">
-                </form>
+                  <form method="POST" enctype="multipart/form-data">
+                    <input type="file" name="file" accept=".pdf">
+                    <!-- <input type="submit" value="Upload"> -->
+                    <input type="submit" value="Summarise!" class="right rounded-md bg-violet-600 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-viloet-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style">
+                  </form>
                 </div>
               </div>
             </section>
@@ -256,9 +275,9 @@
             <section aria-labelledby="section-2-title">
               <h2 class="sr-only" id="section-2-title">Section title</h2>
               <div class="overflow-hidden rounded-lg bg-white shadow">
-                <div class="p-6">
+                <div class="p-6">b 
                   <!-- Content for the right column -->
-                  <p>{{ search_query }}</p>
+                  <p>{{ summary }}</p>
                 </div>
               </div>
             </section>

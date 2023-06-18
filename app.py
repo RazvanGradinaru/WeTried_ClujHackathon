@@ -12,6 +12,12 @@ import requests
 UPLOAD_FOLDER = 'temp_pdfs'
 ALLOWED_EXTENSIONS = {'pdf'}
 
+openai.api_key = ''
+ARXIV_API_URL = 'http://export.arxiv.org/api/query'
+
+choice_wordlength = ""
+choice_topicknowledge = "Intermediate"
+search_query = ""
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -50,12 +56,11 @@ def remove_text_after_references(text):
     return text
 
 def call_openai_api(chunk):
-    print(len(chunk))
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are an assistant trying to explain a paper (research) to a 12 year old, using easy vocabulary."},
-            {"role": "user", "content": f"Summarize the following text in {choice_wordlength_final} words for {choice_topicknowledge} level."},
+            {"role": "user", "content": f"Summarize the following text in less than {choice_wordlength_final} words for {choice_topicknowledge} level."},
             {"role": "user", "content": f"YOUR DATA TO PASS IN: {chunk}."},
         ],
         max_tokens=100,
@@ -67,7 +72,7 @@ def call_openai_api(chunk):
 
 
 def split_into_chunks(text, tokens=500):
-    global choice_wordlength_final
+    global choice_wordlength_final, chunks
     encoding = tiktoken.encoding_for_model('gpt-3.5-turbo')
     words = encoding.encode(text)
     chunks = []
@@ -75,13 +80,16 @@ def split_into_chunks(text, tokens=500):
         chunks.append(' '.join(encoding.decode(words[i:i + tokens])))
 
     if choice_wordlength == "100-150 words":
-        choice_wordlength_final = 150
+        choice_wordlength_final = 100
     elif choice_wordlength == "200-250 words":
-        choice_wordlength_final = 250
+        choice_wordlength_final = 200
     elif choice_wordlength == "350-400 words":
-        choice_wordlength_final = 400
+        choice_wordlength_final = 350
     else:
-        choice_wordlength_final = 250
+        choice_wordlength_final = 200
+    
+    choice_wordlength_final = choice_wordlength_final / len(chunks)
+    print(choice_wordlength_final)
     return chunks   
 
 def process_chunks(input_text):
@@ -92,12 +100,14 @@ def process_chunks(input_text):
         responses = list(executor.map(call_openai_api, chunks))
     return responses
 
+
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
+            # Check if the choice_wordlength is already present in the session
         choice_wordlength = request.form.get("choice_wordlength")
         choice_topicknowledge = request.form.get("choice_topicknowledge")
-        print("Choice topic knowledge: %s." % choice_topicknowledge)
+        print("Choice topic knowledge: %s." % choice_topicknowledge)    
         print("Choice word length: %s." % choice_wordlength)
         # Process the choice_wordlength and choice_topicknowledge here
         # Check if the post request has the file part
@@ -142,113 +152,67 @@ def uploaded_file(filename):
     # Return a response to the user, e.g., display the uploaded file or provide a download link
     return f'Temporary file {filename} has been uploaded successfully!'
 
-#@app.route('/arxivinput', methods=['GET', 'POST'])
-def analyze_user_input(user_text):
-    global search_query
-    # Make a request to OpenAI's Chat API to analyze the user's input
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are an Arxiv topic recommender system based on interests of the user."},
-            {"role": "user", "content": f"Based on the user input about themselves, find what are their interests, what topics they would like to read about on Arxiv and only list the field, and topics they would like to know more about. In your output message only inlcude a list like: quantum field theory, general relativity, black holes."},
-            {"role": "user", "content": f"YOUR DATA TO PASS IN: {user_text}."},
-        ],
-        max_tokens=100,
-        n=1,
-        stop=None,
-        temperature=0.5
-    )
-    
-    # Extract the generated search query from the OpenAI response
-    search_query = response.choices[0]['message']['content']
-    print(search_query)
-
-    return search_query
-
-def recommend(search_query):
-    # Fetch relevant papers from the arXiv API
-    arxiv_url = 'http://export.arxiv.org/api/query'
+def fetch_paper_summary(topic):
+    # Parameters for arXiv API search
     params = {
-        'search_query': search_query,
-        'max_results': 10
+        'search_query': f'all:{topic}',
+        'max_results': 1,
+        'sortBy': 'relevance',
+        'sortOrder': 'descending',
+        'start': 0
     }
-    response2 = requests.get(arxiv_url, params=params)
 
-    if response2.status_code == 200:
-        # Parse the API response and extract relevant paper information
-        papers = parse_arxiv_response(response2.text)
-        return render_template('arxivinput.html', papers=papers)
-    else:
-        return 'Error occurred while fetching papers from the arXiv API.'
+    # Send request to arXiv API
+    response_arxiv = requests.get(ARXIV_API_URL, params=params)
 
-def parse_arxiv_response(response_text):
-    # Find the start and end tags for each paper entry
-    entry_start = '<entry>'
-    entry_end = '</entry>'
+    if response_arxiv.status_code == 200:
+        # Extract the paper summary from the API response
+        xml_data = response_arxiv.text
+        title_start = xml_data.find("<title>") + len("<title>")
+        title_end = xml_data.find("</title>", title_start)
+        title = xml_data[title_start:title_end].strip()
 
-    # Find the start and end tags for the title, authors, and abstract
-    title_start = '<title>'
-    title_end = '</title>'
-    authors_start = '<author>'
-    authors_end = '</author>'
-    abstract_start = '<summary>'
-    abstract_end = '</summary>'
+        author_start = xml_data.find("<author>")
+        author_end = xml_data.find("</author>", author_start)
+        author_start_name = xml_data.find("<name>", author_start) + len("<name>")
+        author_end_name = xml_data.find("</name>", author_start_name)
+        author = xml_data[author_start_name:author_end_name].strip()
 
-    # Initialize the list to store paper information
-    papers = []
+        link_start = xml_data.find("<link title=\"pdf\" href=\"") + len("<link title=\"pdf\" href=\"")
+        link_end = xml_data.find("\"", link_start)
+        link = xml_data[link_start:link_end].strip()
 
-    # Loop through the response text and extract paper information
-    while True:
-        # Find the start and end indices of the next paper entry
-        start_index = response_text.find(entry_start)
-        end_index = response_text.find(entry_end)
+        summary_start = xml_data.find("<summary>") + len("<summary>")
+        summary_end = xml_data.find("</summary>", summary_start)
+        summary_arxiv = xml_data[summary_start:summary_end].strip()
 
-        # Break the loop if no more paper entries are found
-        if start_index == -1 or end_index == -1:
-            break
+        return f'<strong>Title:</strong> {title}<br>' \
+               f'<strong>Authors:</strong> {author}<br>' \
+               f'<strong>Link:</strong> <a href="{link}">{link}</a><br>' \
+               f'<strong>Summary:</strong><br>{summary_arxiv}'
 
-        # Extract the paper entry
-        paper_entry = response_text[start_index:end_index + len(entry_end)]
-
-        # Extract the title
-        title_start_index = paper_entry.find(title_start)
-        title_end_index = paper_entry.find(title_end)
-        title = paper_entry[title_start_index + len(title_start):title_end_index]
-
-        # Extract the authors
-        authors_start_index = paper_entry.find(authors_start)
-        authors_end_index = paper_entry.find(authors_end)
-        authors = paper_entry[authors_start_index + len(authors_start):authors_end_index]
-
-        # Extract the abstract
-        abstract_start_index = paper_entry.find(abstract_start)
-        abstract_end_index = paper_entry.find(abstract_end)
-        abstract = paper_entry[abstract_start_index + len(abstract_start):abstract_end_index]
-
-        # Create a dictionary with the paper information
-        paper = {
-            'title': title,
-            'authors': authors,
-            'abstract': abstract
-        }
-
-        # Append the paper dictionary to the list
-        papers.append(paper)
-
-        # Update the response text by removing the processed paper entry
-        response_text = response_text[end_index + len(entry_end):]
-
-    return papers
+    return None
 
 @app.route('/arxivinput', methods=['GET', 'POST'])
 def index():
-    k = ""
     if request.method == 'POST':
-        user_text = request.form.get('user_text')
-        analyze_user_input(user_text)
-        k = recommend(search_query)
-        return k
-    return render_template('arxivinput.html')
+        topic = request.form['topic']
+
+        # Fetch paper summary using the arXiv API
+        summary = fetch_paper_summary(topic)
+
+        if summary:
+            return f'Summary of a paper on "{topic}":<br>{summary}'
+        else:
+            return 'No paper found for the given topic.'
+
+    return '''
+        <form method="POST">
+            <label for="topic">Enter a topic:</label><br>
+            <input type="text" id="topic" name="topic" required><br><br>
+            <input type="submit" value="Submit">
+        </form>
+    '''
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -103,7 +103,7 @@
         <div class="hidden border-t border-white border-opacity-20 py-5 lg:block">
           <!-- te vreau aici -->
           <h1 class="text-2xl font-bold text-white">About: </h1>
-          <p class = "text 1.5x1 tracking-tight text-white">This web app allows you to import any reasearch paper (in PDF file format) and it automatically sumarises it for you. You can select how long you want the summary to be and also, your level of knowledge on the topic. The app will provide a custom summary, by adapting to the requirements set by you. </p>
+          <p class = "text 1.5x1 tracking-tight text-white">This web app allows you to import any reasearch paper (in PDF file format) and it automatically summarises it for you. You can select how long you want the summary to be and also, your level of knowledge on the topic. The app will provide a custom summary, by adapting to the requirements set by you. </p>
         </div>
       </div>
 
@@ -137,10 +137,31 @@
                   <!-- <input type="submit" value="Summarise!" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style"> -->
                 <!-- </div> -->
               <!--</form> -->
-              <form method="POST" enctype="multipart/form-data">
-                <!-- <input type="submit" value="Upload"> -->
-                <input type="submit" value="Summarise!" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style">
-              </form>
+              
+              <button onclick="redirectToArxiv()" class="your-button-styles">Go to Arxiv Paper Picker</button>
+              
+              <style>
+                .your-button-styles {
+                  background-color:  rgb(124 58 237);;
+                  border: none;
+                  color: white;
+                  padding: 10px 20px;
+                  text-align: center;
+                  text-decoration: none;
+                  display: inline-block;
+                  font-size: 16px;
+                  font-weight: bold;
+                  border-radius: 4px;
+                  cursor: pointer;
+                }
+              </style>
+
+              <script>
+                function redirectToArxiv() {
+                  window.location.href = "/arxiv";
+                }
+              </script>
+
             </nav>
           </div>
           <!-- SearchWasHere-->
@@ -223,9 +244,6 @@
     </div>
   </header>
 </div>
-
-  
-
 <div class="min-h-full">
   <header class="bg-violet-600 pb-24">
     <main class="-mt-300 pb-8"> 
@@ -235,16 +253,17 @@
     
         <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-5 lg:gap-8">
           <!-- Left column -->
-          <div class="grid grid-cols-1 gap-4 lg:col-span-3">
+          <div class="grid grid-cols-1 gap-4 lg:col-span-2">
             <section aria-labelledby="section-1-title">
               <h2 class="sr-only" id="section-1-title">Section title</h2>
               <div class="overflow-hidden rounded-lg bg-white shadow">
                 <div class="p-6">
+
                   <!-- Content for the left column -->
                   <form method="POST" enctype="multipart/form-data">
                     <input type="file" name="file" accept=".pdf">
                     <!-- <input type="submit" value="Upload"> -->
-                    <input type="submit" value="Summarise!" class="right rounded-md bg-indigo-500 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style">
+                    <input type="submit" value="Summarise!" class="right rounded-md bg-violet-600 px-5 py-5 text-sm font-semibold text-white shadow-sm hover:bg-viloet-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 button-style">
                   </form>
                 </div>
               </div>
@@ -252,13 +271,13 @@
           </div>
         
           <!-- Right column -->
-          <div class="grid grid-cols-1 gap-4 lg:col-span-2">
+          <div class="grid grid-cols-1 gap-4 lg:col-span-3">
             <section aria-labelledby="section-2-title">
               <h2 class="sr-only" id="section-2-title">Section title</h2>
               <div class="overflow-hidden rounded-lg bg-white shadow">
                 <div class="p-6">
                   <!-- Content for the right column -->
-                  <p>{{ summary }}</p>
+                  <p>{{ summary }}</p> 
                 </div>
               </div>
             </section>

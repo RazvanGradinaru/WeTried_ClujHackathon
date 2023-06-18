@@ -11,8 +11,6 @@ from werkzeug.utils import secure_filename
 UPLOAD_FOLDER = 'temp_pdfs'
 ALLOWED_EXTENSIONS = {'pdf'}
 
-openai.api_key = 'sk-'
-
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 

@@ -15,9 +15,11 @@ ALLOWED_EXTENSIONS = {'pdf'}
 openai.api_key = ''
 ARXIV_API_URL = 'http://export.arxiv.org/api/query'
 
-choice_wordlength = ""
-choice_topicknowledge = "Intermediate"
+#choice_wordlength = ""
+#choice_topicknowledge = "Intermediate"
 search_query = ""
+selected_Summary_length = ""
+selected_Topic_knowledge = ""
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -60,13 +62,13 @@ def call_openai_api(chunk):
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are an assistant trying to explain a paper (research) to a 12 year old, using easy vocabulary."},
-            {"role": "user", "content": f"Summarize the following text in less than {choice_wordlength_final} words for {choice_topicknowledge} level."},
+            {"role": "user", "content": f"Summarize the following text in less than {choice_wordlength_final} words for {selected_Topic_knowledge} level."},
             {"role": "user", "content": f"YOUR DATA TO PASS IN: {chunk}."},
         ],
         max_tokens=100,
         n=1,
         stop=None,
-        temperature=0.5
+        temperature=0.3
     )
     return response.choices[0]['message']['content']
 
@@ -78,17 +80,8 @@ def split_into_chunks(text, tokens=500):
     chunks = []
     for i in range(0, len(words), tokens):
         chunks.append(' '.join(encoding.decode(words[i:i + tokens])))
-
-    if choice_wordlength == "100-150 words":
-        choice_wordlength_final = 100
-    elif choice_wordlength == "200-250 words":
-        choice_wordlength_final = 200
-    elif choice_wordlength == "350-400 words":
-        choice_wordlength_final = 350
-    else:
-        choice_wordlength_final = 200
     
-    choice_wordlength_final = choice_wordlength_final / len(chunks)
+    choice_wordlength_final = selected_Summary_length / len(chunks)
     print(choice_wordlength_final)
     return chunks   
 
@@ -104,11 +97,20 @@ def process_chunks(input_text):
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
+        global selected_Topic_knowledge, selected_Summary_length
             # Check if the choice_wordlength is already present in the session
-        choice_wordlength = request.form.get("choice_wordlength")
-        choice_topicknowledge = request.form.get("choice_topicknowledge")
-        print("Choice topic knowledge: %s." % choice_topicknowledge)    
-        print("Choice word length: %s." % choice_wordlength)
+        selected_Topic_knowledge = request.form.get("topicknowledge")
+        selected_Summary_length = request.form.get("summarylength")
+        print(selected_Summary_length)
+        print(selected_Topic_knowledge)
+        if selected_Summary_length == "100-150 words":
+            selected_Summary_length = 100
+        elif selected_Summary_length == "200-250 words":
+            selected_Summary_length = 200
+        elif selected_Summary_length == "350-400 words":
+            selected_Summary_length = 350
+        else:
+            selected_Summary_length = 200
         # Process the choice_wordlength and choice_topicknowledge here
         # Check if the post request has the file part
         if 'file' not in request.files:
@@ -125,16 +127,21 @@ def upload_file():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             #file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             file.save(filepath)
-            extracted_text = extract_text_from_pdf(filepath)
-            cleaned_text = remove_text_before_keyword(extracted_text, 'Abstract')
-            cleaned_text = remove_text_after_references(cleaned_text)
-            
-            finalfinalAnswer=process_chunks(cleaned_text)
-            finalfinalfinalAnswer = ""
 
-            while finalfinalAnswer:
-                item = finalfinalAnswer.pop(0)
-                finalfinalfinalAnswer = finalfinalfinalAnswer + item
+            #These lines need the API, comment them if you don't have the API KEY. Else when clicking summarize it doesnt work.
+
+            #extracted_text = extract_text_from_pdf(filepath)
+            #cleaned_text = remove_text_before_keyword(extracted_text, 'Abstract')
+            #cleaned_text = remove_text_after_references(cleaned_text)
+            
+            #finalfinalAnswer=process_chunks(cleaned_text)
+            #finalfinalfinalAnswer = ""
+
+            #while finalfinalAnswer:
+             #   item = finalfinalAnswer.pop(0)
+              #  finalfinalfinalAnswer = finalfinalfinalAnswer + item
+
+
             #final_summary = generate_summary(final_summary, final_summary_length, topic_knowledge)
 
             #final_summary_length = request.form.get('final_summary_length')  # Get selected word length from the form
@@ -143,7 +150,10 @@ def upload_file():
 
             # Perform further processing or return a response to the user
             #return redirect(url_for('uploaded_file', filename=filename))
-            return render_template('index.html', summary = finalfinalfinalAnswer)
+
+
+            #THERE IS AN EXTRA LETTER AT THE END FOR TOPIC KNOWLEDGE AND SUMMARY LENGTH
+            return render_template('index.html', summary = "finalfinalfinalAnswer", topicknowledgee=selected_Topic_knowledge, summarylengthh=selected_Summary_length)
     # Render the file upload form template for GET requests
     return render_template('index.html')
 
@@ -206,13 +216,7 @@ def index():
         else:
             return 'No paper found for the given topic.'
 
-    return '''
-        <form method="POST">
-            <label for="topic">Enter a topic:</label><br>
-            <input type="text" id="topic" name="topic" required><br><br>
-            <input type="submit" value="Submit">
-        </form>
-    '''
+    return render_template('arxivinput.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
